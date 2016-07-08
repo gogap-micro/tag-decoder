@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/mitchellh/colorstring"
 	"github.com/urfave/cli"
 	"net/http"
 	"os"
@@ -28,7 +29,7 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
 			Name:  "data, d",
-			Usage: "Encoded string",
+			Usage: "encoded string",
 		},
 		cli.StringFlag{
 			Name:  "url, u",
@@ -38,6 +39,10 @@ func main() {
 		cli.StringSliceFlag{
 			Name:  "service, s",
 			Usage: "services you wanted to decode",
+		},
+		cli.StringSliceFlag{
+			Name:  "keyword, k",
+			Usage: "highlight keywords",
 		},
 	}
 
@@ -50,9 +55,10 @@ func main() {
 func dec(c *cli.Context) (err error) {
 
 	data := c.String("data")
+	keywords := c.StringSlice("keyword")
 
 	if len(data) > 0 {
-		return decData(data)
+		return decData(data, keywords)
 	}
 
 	url := c.String("url")
@@ -107,13 +113,18 @@ func dec(c *cli.Context) (err error) {
 				return
 			}
 
-			fmt.Println(string(out))
+			strJSON := string(out)
+			for i := 0; i < len(keywords); i++ {
+				strJSON = strings.Replace(strJSON, keywords[i], "[yellow]"+keywords[i]+"[white]", -1)
+			}
+
+			colorstring.Println(strJSON)
 		}
 	}
 	return
 }
 
-func decData(data string) (err error) {
+func decData(data string, keywords []string) (err error) {
 	data = strings.TrimSpace(data)
 
 	tags := strings.Split(data, ",")
@@ -126,7 +137,13 @@ func decData(data string) (err error) {
 		return
 	}
 
-	fmt.Println(string(out))
+	strJSON := string(out)
+	for i := 0; i < len(keywords); i++ {
+		strJSON = strings.Replace(strJSON, keywords[i], "[yellow]"+keywords[i]+"[white]", -1)
+	}
+
+	colorstring.Println(strJSON)
+
 	return
 }
 
