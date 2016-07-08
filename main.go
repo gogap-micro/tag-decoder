@@ -115,7 +115,7 @@ func dec(c *cli.Context) (err error) {
 
 			strJSON := string(out)
 			for i := 0; i < len(keywords); i++ {
-				strJSON = strings.Replace(strJSON, keywords[i], "[yellow]"+keywords[i]+"[white]", -1)
+				strJSON = strings.Replace(strJSON, keywords[i], "[light_yellow][bold]"+keywords[i]+"[reset]", -1)
 			}
 
 			colorstring.Println(strJSON)
@@ -139,7 +139,7 @@ func decData(data string, keywords []string) (err error) {
 
 	strJSON := string(out)
 	for i := 0; i < len(keywords); i++ {
-		strJSON = strings.Replace(strJSON, keywords[i], "[yellow]"+keywords[i]+"[white]", -1)
+		strJSON = strings.Replace(strJSON, keywords[i], "[light_yellow][bold]"+keywords[i]+"[reset]", -1)
 	}
 
 	colorstring.Println(strJSON)
