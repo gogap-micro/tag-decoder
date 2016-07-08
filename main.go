@@ -4,9 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/urfave/cli"
+	"net/http"
 	"os"
 	"strings"
 )
+
+type NodeService struct {
+	Service string
+	Address string
+	Port    int
+	Tags    []string
+}
+
+type ConsulNode struct {
+	Node     string
+	Services []NodeService
+}
 
 func main() {
 	app := cli.NewApp()
@@ -17,9 +30,19 @@ func main() {
 			Name:  "data, d",
 			Usage: "Encoded string",
 		},
+		cli.StringFlag{
+			Name:  "url, u",
+			Usage: "consul address",
+			Value: "http://127.0.0.1/v1/internal/ui/nodes?dc=dc1&token=",
+		},
+		cli.StringSliceFlag{
+			Name:  "service, s",
+			Usage: "services you wanted to decode",
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
+		fmt.Println(err)
 		return
 	}
 }
@@ -28,12 +51,86 @@ func dec(c *cli.Context) (err error) {
 
 	data := c.String("data")
 
-	if len(data) == 0 {
+	if len(data) > 0 {
+		return decData(data)
+	}
+
+	url := c.String("url")
+	if len(url) == 0 {
 		return
 	}
 
+	serviceList := c.StringSlice("service")
+	var srvMap map[string]bool
+	if len(serviceList) > 0 {
+		srvMap = make(map[string]bool)
+		for i := 0; i < len(serviceList); i++ {
+			srvMap[serviceList[i]] = true
+		}
+	}
+
+	var resp *http.Response
+	if resp, err = http.DefaultClient.Get(url); err != nil {
+		return
+	}
+
+	defer resp.Body.Close()
+
+	nodes := []ConsulNode{}
+
+	decoder := json.NewDecoder(resp.Body)
+
+	if err = decoder.Decode(&nodes); err != nil {
+		return
+	}
+
+	for i := 0; i < len(nodes); i++ {
+		for j := 0; j < len(nodes[i].Services); j++ {
+			service := nodes[i].Services[j]
+			if srvMap != nil {
+				if _, exist := srvMap[service.Service]; !exist {
+					continue
+				}
+			}
+
+			metadata, endpoints := decodeTags(service.Tags)
+			dataMap := map[string]interface{}{
+				"service":   service.Service,
+				"address":   service.Address,
+				"port":      service.Port,
+				"metadata":  metadata,
+				"endpoints": endpoints,
+			}
+
+			var out []byte
+			if out, err = json.MarshalIndent(dataMap, "", "    "); err != nil {
+				return
+			}
+
+			fmt.Println(string(out))
+		}
+	}
+	return
+}
+
+func decData(data string) (err error) {
 	data = strings.TrimSpace(data)
+
 	tags := strings.Split(data, ",")
+	metadata, endpoints := decodeTags(tags)
+
+	dataMap := map[string]interface{}{"metadata": metadata, "endpoints": endpoints}
+
+	var out []byte
+	if out, err = json.MarshalIndent(dataMap, "", "    "); err != nil {
+		return
+	}
+
+	fmt.Println(string(out))
+	return
+}
+
+func decodeTags(tags []string) (metadata interface{}, endpoints interface{}) {
 
 	var metadataTags []string
 	var endpointTags []string
@@ -47,17 +144,7 @@ func dec(c *cli.Context) (err error) {
 		}
 	}
 
-	metadata := decodeMetadata(metadataTags)
-	endpoints := decodeEndpoints(endpointTags)
-
-	dataMap := map[string]interface{}{"metadata": metadata, "endpoints": endpoints}
-
-	var out []byte
-	if out, err = json.MarshalIndent(dataMap, "", "    "); err != nil {
-		return
-	}
-
-	fmt.Println(string(out))
-
+	metadata = decodeMetadata(metadataTags)
+	endpoints = decodeEndpoints(endpointTags)
 	return
 }
