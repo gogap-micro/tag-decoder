@@ -33,7 +33,7 @@ func main() {
 		cli.StringFlag{
 			Name:  "url, u",
 			Usage: "consul address",
-			Value: "http://127.0.0.1/v1/internal/ui/nodes?dc=dc1&token=",
+			Value: "http://127.0.0.1:8500/v1/internal/ui/nodes?dc=dc1&token=",
 		},
 		cli.StringSliceFlag{
 			Name:  "service, s",
